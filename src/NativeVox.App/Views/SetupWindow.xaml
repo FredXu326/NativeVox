@@ -1,0 +1,111 @@
+<Window x:Class="NativeVox.App.Views.SetupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Welcome to NativeVox - Setup"
+        Width="540" Height="480"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="#0F172A"
+        Foreground="#F8FAFC">
+
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI Variable Display, Segoe UI, sans-serif"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="28">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Border Width="32" Height="32" CornerRadius="8" Background="#2563EB" Margin="0,0,12,0">
+                    <TextBlock Text="NV" Foreground="White" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock Text="NativeVox Setup" FontSize="22" FontWeight="Bold" Foreground="#F8FAFC"/>
+            </StackPanel>
+            <TextBlock Text="Fast, private, 100% on-device speech-to-text dictation."
+                       FontSize="13" Foreground="#94A3B8" Margin="0,6,0,0"/>
+        </StackPanel>
+
+        <!-- Main Configuration Area -->
+        <Border Grid.Row="1" Background="#1E293B" CornerRadius="12" Padding="20" BorderBrush="#334155" BorderThickness="1">
+            <StackPanel>
+                <!-- Model Selection -->
+                <TextBlock Text="1. Select Whisper Model to Download" FontSize="14" FontWeight="SemiBold" Foreground="#E2E8F0" Margin="0,0,0,8"/>
+                <ComboBox x:Name="ModelSelector"
+                          Height="36"
+                          Background="#0F172A"
+                          Foreground="#000000"
+                          BorderBrush="#475569"
+                          Padding="8,6"
+                          FontSize="13"
+                          SelectionChanged="OnModelSelectionChanged"/>
+
+                <TextBlock x:Name="ModelDescriptionText"
+                           Text="Base model offers high speed and great accuracy for English dictation (~142 MB)."
+                           FontSize="12" Foreground="#94A3B8" Margin="0,6,0,16" TextWrapping="Wrap"/>
+
+                <!-- Download Progress -->
+                <StackPanel x:Name="DownloadPanel" Margin="0,0,0,16">
+                    <Grid Margin="0,0,0,6">
+                        <TextBlock x:Name="DownloadStatusText" Text="Ready to download" FontSize="12" Foreground="#CBD5E1"/>
+                        <TextBlock x:Name="DownloadPercentText" Text="0%" FontSize="12" FontWeight="Bold" Foreground="#38BDF8" HorizontalAlignment="Right"/>
+                    </Grid>
+                    <ProgressBar x:Name="DownloadProgressBar" Height="8" Minimum="0" Maximum="100" Value="0"
+                                 Foreground="#3B82F6" Background="#0F172A" BorderThickness="0"/>
+                </StackPanel>
+
+                <!-- Hotkey Configuration -->
+                <TextBlock Text="2. Global Toggle Hotkey" FontSize="14" FontWeight="SemiBold" Foreground="#E2E8F0" Margin="0,4,0,8"/>
+                <Border Background="#0F172A" CornerRadius="8" Padding="12,8" BorderBrush="#334155" BorderThickness="1">
+                    <Grid>
+                        <TextBlock Text="Dictation Toggle:" FontSize="13" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="HotkeyDisplayText" Text="Ctrl + Space" FontSize="13" FontWeight="Bold" Foreground="#38BDF8" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+                <TextBlock Text="Press hotkey once to start dictation, press again to finish."
+                           FontSize="11" Foreground="#64748B" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Actions Footer -->
+        <Grid Grid.Row="2" Margin="0,20,0,0">
+            <Button x:Name="DownloadButton"
+                    Content="Download Model"
+                    Height="40" Width="160"
+                    HorizontalAlignment="Left"
+                    Background="#2563EB" Foreground="White"
+                    FontWeight="SemiBold" FontSize="13"
+                    BorderThickness="0" Cursor="Hand"
+                    Click="OnDownloadClicked">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="8"/>
+                    </Style>
+                </Button.Resources>
+            </Button>
+
+            <Button x:Name="CompleteButton"
+                    Content="Start NativeVox"
+                    Height="40" Width="160"
+                    HorizontalAlignment="Right"
+                    Background="#10B981" Foreground="White"
+                    FontWeight="SemiBold" FontSize="13"
+                    BorderThickness="0" Cursor="Hand"
+                    IsEnabled="False"
+                    Click="OnCompleteClicked">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="8"/>
+                    </Style>
+                </Button.Resources>
+            </Button>
+        </Grid>
+    </Grid>
+</Window>

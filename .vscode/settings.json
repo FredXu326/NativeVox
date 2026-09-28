@@ -1,0 +1,4 @@
+{
+    "robotcode.disableExtension": true,
+    "dotnet.defaultSolution": "NativeVox.sln"
+}
