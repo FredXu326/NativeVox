@@ -13,6 +13,10 @@ out/
 *.userprefs
 *.dbmdl
 *.jfm
+Backup/
+UpgradeLog*.htm
+UpgradeLog*.xml
+_UpgradeReport_Files/
 
 # Visual Studio Code
 .vscode/*
