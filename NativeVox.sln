@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31903.59
+# Visual Studio Version 18
+VisualStudioVersion = 18.11.12328.437 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NativeVox.Core", "NativeVox.Core\NativeVox.Core.csproj", "{22A3EAEE-F37C-413F-A89D-0743BDEC1347}"
 EndProject
@@ -10,6 +10,16 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NativeVox.App", "NativeVox.App\NativeVox.App.csproj", "{DDA1514D-D36C-4DED-8568-386EEFEB51DA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NativeVox.Tests", "NativeVox.Tests\NativeVox.Tests.csproj", "{C9F06719-25E7-43F7-B315-9F07FD8CB6CF}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{9576E0DA-EEB2-4720-B8E3-B7997DDB1B1E}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+		AGENTS.md = AGENTS.md
+		architecture.md = architecture.md
+		LICENSE = LICENSE
+		README.md = README.md
+		Software Requirements Specification.docx = Software Requirements Specification.docx
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -73,7 +83,6 @@ Global
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
-
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {B8C1D98D-5BAC-410E-8FA0-5DEDA76BDF84}
 	EndGlobalSection
