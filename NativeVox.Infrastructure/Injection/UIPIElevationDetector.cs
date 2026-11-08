@@ -1,7 +1,9 @@
 namespace NativeVox.Infrastructure.Injection;
 
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
+using Serilog;
 
 public static class UIPIElevationDetector
 {
@@ -63,6 +65,8 @@ public static class UIPIElevationDetector
         if (hProcess == IntPtr.Zero)
         {
             // If we cannot even open the process handle with limited query, it's often a protected or elevated system process
+            Log.Debug("OpenProcess failed for foreground pid {Pid} (Win32 error {Error}); assuming target is elevated.",
+                processId, Marshal.GetLastWin32Error());
             return true;
         }
 
@@ -70,6 +74,8 @@ public static class UIPIElevationDetector
         {
             if (!OpenProcessToken(hProcess, TOKEN_QUERY, out var hToken))
             {
+                Log.Debug("OpenProcessToken failed for foreground pid {Pid} (Win32 error {Error}); assuming target is elevated.",
+                    processId, Marshal.GetLastWin32Error());
                 return true;
             }
 
@@ -108,6 +114,33 @@ public static class UIPIElevationDetector
     /// </summary>
     public static bool WillUIPIBlockInjection()
     {
-        return !IsCurrentProcessElevated() && IsForegroundWindowElevated();
+        bool selfElevated = IsCurrentProcessElevated();
+        bool targetElevated = !selfElevated && IsForegroundWindowElevated();
+        Log.Verbose("UIPI check: NativeVox elevated: {Self}, foreground target elevated: {Target}.", selfElevated, targetElevated);
+        return !selfElevated && targetElevated;
+    }
+
+    /// <summary>
+    /// Returns a short human-readable description of the foreground window for diagnostics,
+    /// e.g. "notepad (pid 1234, hWnd 0x1A2B3C)".
+    /// </summary>
+    public static string DescribeForegroundWindow()
+    {
+        var hWnd = GetForegroundWindow();
+        if (hWnd == IntPtr.Zero) return "<no foreground window>";
+
+        GetWindowThreadProcessId(hWnd, out var processId);
+        string processName;
+        try
+        {
+            using var process = Process.GetProcessById((int)processId);
+            processName = process.ProcessName;
+        }
+        catch
+        {
+            processName = "<unknown>";
+        }
+
+        return $"{processName} (pid {processId}, hWnd 0x{hWnd.ToInt64():X})";
     }
 }

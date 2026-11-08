@@ -3,6 +3,7 @@ namespace NativeVox.App.Views;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using Serilog;
 using NativeVox.Core.Models;
 using NativeVox.Core.Services;
 using NativeVox.Infrastructure.Injection;
@@ -60,6 +61,7 @@ public partial class SettingsWindow : Window
 
         DownloadModelButton.IsEnabled = false;
         DownloadModelButton.Content = "Downloading...";
+        Log.Debug("Settings: download clicked for {Model}.", selected.Size);
 
         try
         {
@@ -69,6 +71,7 @@ public partial class SettingsWindow : Window
         }
         catch (Exception ex)
         {
+            Log.Error(ex, "Settings: model download failed.");
             MessageBox.Show($"Failed to download model: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             DownloadModelButton.IsEnabled = true;
             DownloadModelButton.Content = "Download This Model";
@@ -88,6 +91,7 @@ public partial class SettingsWindow : Window
         }
         catch (Exception ex)
         {
+            Log.Warning(ex, "Settings: could not open logs folder.");
             MessageBox.Show($"Could not open logs folder: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
@@ -106,11 +110,13 @@ public partial class SettingsWindow : Window
 
         try
         {
+            Log.Information("Relaunching as Administrator from settings: {Path}", exePath);
             Process.Start(startInfo);
             Application.Current.Shutdown();
         }
         catch (Exception ex)
         {
+            Log.Debug("Elevated relaunch cancelled or failed: {Message}", ex.Message);
             MessageBox.Show($"Elevation cancelled or failed: {ex.Message}", "Relaunch", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
@@ -129,6 +135,9 @@ public partial class SettingsWindow : Window
 
         _settings.DirectProgressiveTypingEnabled = ProgressiveTypingCheckBox.IsChecked ?? true;
         _settings.EnablePulsingHUD = PulsingHudCheckBox.IsChecked ?? true;
+
+        Log.Information("Settings saved from UI: Model={Model}, Provider={Provider}, ProgressiveTyping={Progressive}, HUD={Hud}.",
+            _settings.SelectedModel, _settings.Provider, _settings.DirectProgressiveTypingEnabled, _settings.EnablePulsingHUD);
 
         AppPathResolver.SaveSettings(_settings);
         _onSettingsUpdated();

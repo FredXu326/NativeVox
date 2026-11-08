@@ -2,6 +2,7 @@ namespace NativeVox.App.Views;
 
 using System.Windows;
 using System.Windows.Media.Animation;
+using Serilog;
 using NativeVox.App.Helpers;
 
 public partial class OverlayWindow : Window
@@ -44,6 +45,11 @@ public partial class OverlayWindow : Window
 
             Left = Math.Max(0, targetLeft);
             Top = Math.Max(0, targetTop);
+            Log.Verbose("Overlay shown at ({Left:F0}, {Top:F0}) near cursor ({X}, {Y}).", Left, Top, pt.X, pt.Y);
+        }
+        else
+        {
+            Log.Debug("GetCursorPos failed; overlay shown at its previous position.");
         }
 
         Show();

@@ -16,6 +16,14 @@ public class NAudioCaptureService : IAudioCaptureService
     private bool _disposed;
     private int _currentDeviceIndex = -1;
 
+    // Per-session capture statistics (used for diagnostics only).
+    private const int ChunksPerVerboseLog = 10; // 10 x 100ms buffers = ~1s
+    private const float SilencePeakThreshold = 0.01f;
+    private int _chunkCount;
+    private float _peakLevel;
+    private double _levelSum;
+    private float _windowPeakLevel;
+
     public bool IsRecording
     {
         get { lock (_lock) return _isRecording; }
@@ -46,7 +54,11 @@ public class NAudioCaptureService : IAudioCaptureService
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (IsRecording) return;
+        if (IsRecording)
+        {
+            Log.Debug("Audio StartAsync ignored: already recording.");
+            return;
+        }
 
         _currentDeviceIndex = deviceIndex;
 
@@ -81,17 +93,51 @@ public class NAudioCaptureService : IAudioCaptureService
         lock (_lock)
         {
             _accumulatedBuffer.SetLength(0);
+            _chunkCount = 0;
+            _peakLevel = 0f;
+            _levelSum = 0;
+            _windowPeakLevel = 0f;
         }
+
+        int deviceCount = WaveInEvent.DeviceCount;
+        int deviceNumber = deviceIndex >= 0 && deviceIndex < deviceCount ? deviceIndex : 0;
 
         _waveIn = new WaveInEvent
         {
             WaveFormat = new WaveFormat(16000, 16, 1), // 16kHz, 16-bit Mono required by Whisper
             BufferMilliseconds = 100,
-            DeviceNumber = deviceIndex >= 0 && deviceIndex < WaveInEvent.DeviceCount ? deviceIndex : 0
+            DeviceNumber = deviceNumber
         };
 
         _waveIn.DataAvailable += OnDataAvailable;
         _waveIn.RecordingStopped += OnRecordingStopped;
+
+        LogDeviceSelection(deviceIndex, deviceNumber, deviceCount);
+    }
+
+    private static void LogDeviceSelection(int requestedIndex, int deviceNumber, int deviceCount)
+    {
+        if (deviceCount == 0)
+        {
+            Log.Warning("No audio input devices detected by WaveIn.");
+            return;
+        }
+
+        try
+        {
+            var caps = WaveInEvent.GetCapabilities(deviceNumber);
+            Log.Debug("Using audio input device #{Device} \"{Name}\" (requested index {Requested}, {Count} device(s) available, {Channels} channel(s)).",
+                deviceNumber, caps.ProductName, requestedIndex, deviceCount, caps.Channels);
+
+            for (int i = 0; i < deviceCount; i++)
+            {
+                Log.Verbose("  Input device #{Index}: \"{Name}\"", i, WaveInEvent.GetCapabilities(i).ProductName);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Could not query capabilities for audio device #{Device}.", deviceNumber);
+        }
     }
 
     private void OnDataAvailable(object? sender, WaveInEventArgs e)
@@ -108,10 +154,32 @@ public class NAudioCaptureService : IAudioCaptureService
 
         // Calculate RMS peak for pulsing microphone visual feedback
         float rms = CalculateRmsLevel(e.Buffer, e.BytesRecorded);
+        TrackLevelStatistics(rms);
         AudioLevelChanged?.Invoke(this, rms);
 
         // Notify progressive stream listeners
         AudioChunkAvailable?.Invoke(this, chunk);
+    }
+
+    private void TrackLevelStatistics(float rms)
+    {
+        int chunk;
+        float windowPeak;
+        lock (_lock)
+        {
+            _chunkCount++;
+            _levelSum += rms;
+            _peakLevel = Math.Max(_peakLevel, rms);
+            _windowPeakLevel = Math.Max(_windowPeakLevel, rms);
+            chunk = _chunkCount;
+            windowPeak = _windowPeakLevel;
+            if (chunk % ChunksPerVerboseLog == 0) _windowPeakLevel = 0f;
+        }
+
+        if (chunk % ChunksPerVerboseLog == 0)
+        {
+            Log.Verbose("Audio level: {Seconds:F1}s captured, peak RMS over last second {Peak:F3}.", chunk / 10.0, windowPeak);
+        }
     }
 
     private static float CalculateRmsLevel(byte[] buffer, int bytesRecorded)
@@ -133,6 +201,7 @@ public class NAudioCaptureService : IAudioCaptureService
 
     private void OnRecordingStopped(object? sender, StoppedEventArgs e)
     {
+        Log.Verbose("WaveIn RecordingStopped event (abnormal: {Abnormal}).", e.Exception != null);
         if (e.Exception != null)
         {
             Log.Error(e.Exception, "Audio recording stopped abnormally.");
@@ -164,6 +233,7 @@ public class NAudioCaptureService : IAudioCaptureService
 
         if (!IsRecording)
         {
+            Log.Debug("Audio StopAsync called while not recording; returning empty buffer.");
             return Task.FromResult(Array.Empty<byte>());
         }
 
@@ -179,10 +249,24 @@ public class NAudioCaptureService : IAudioCaptureService
         }
 
         byte[] fullAudio;
+        int chunks;
+        float peak;
+        double avg;
         lock (_lock)
         {
             fullAudio = _accumulatedBuffer.ToArray();
             _accumulatedBuffer.SetLength(0);
+            chunks = _chunkCount;
+            peak = _peakLevel;
+            avg = _chunkCount > 0 ? _levelSum / _chunkCount : 0;
+        }
+
+        Log.Debug("Audio capture stopped: {Chunks} buffer(s), {Bytes} bytes, peak RMS {Peak:F3}, average RMS {Avg:F3}.",
+            chunks, fullAudio.Length, peak, avg);
+
+        if (chunks > 0 && peak < SilencePeakThreshold)
+        {
+            Log.Warning("Captured audio is near-silent (peak RMS {Peak:F4}). The microphone may be muted, the wrong device may be selected, or input volume is too low.", peak);
         }
 
         CleanupWaveIn();

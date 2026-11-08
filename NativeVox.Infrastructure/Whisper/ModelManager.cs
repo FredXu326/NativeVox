@@ -2,6 +2,7 @@ namespace NativeVox.Infrastructure.Whisper;
 
 using System.IO;
 using System.Net.Http;
+using Serilog;
 using NativeVox.Core.Models;
 using NativeVox.Core.Services;
 using NativeVox.Infrastructure.Storage;
@@ -94,48 +95,79 @@ public class ModelManager : IModelManager
         AppPathResolver.EnsureDirectoriesExist();
         var destinationPath = Path.Combine(AppPathResolver.ModelsDirectory, def.FileName);
         var tempPath = destinationPath + ".downloading";
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        Log.Information("Downloading model {Model} from {Url} to {Path}.", size, def.Url, destinationPath);
 
         try
         {
             using var response = await _httpClient.GetAsync(def.Url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            Log.Debug("Model download response: HTTP {Status}, Content-Length {Length}.",
+                (int)response.StatusCode, response.Content.Headers.ContentLength);
             response.EnsureSuccessStatusCode();
 
             var totalBytes = response.Content.Headers.ContentLength ?? def.SizeBytes;
+            long totalRead = 0;
 
             await using (var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken))
             await using (var fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
             {
                 var buffer = new byte[81920];
-                long totalRead = 0;
                 int read;
+                int lastLoggedDecile = 0;
 
                 while ((read = await contentStream.ReadAsync(buffer, cancellationToken)) > 0)
                 {
                     await fileStream.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
                     totalRead += read;
 
-                    if (totalBytes > 0 && progress != null)
+                    if (totalBytes > 0)
                     {
                         var percentage = (double)totalRead / totalBytes * 100.0;
-                        progress.Report(Math.Min(100.0, percentage));
+                        progress?.Report(Math.Min(100.0, percentage));
+
+                        int decile = (int)(percentage / 10);
+                        if (decile > lastLoggedDecile && decile < 10)
+                        {
+                            lastLoggedDecile = decile;
+                            Log.Verbose("Model {Model} download progress: {Percent}% ({ReadMB:F1} MB).", size, decile * 10, totalRead / 1_048_576.0);
+                        }
                     }
                 }
             }
 
             if (File.Exists(destinationPath))
             {
+                Log.Debug("Replacing existing model file {Path}.", destinationPath);
                 File.Delete(destinationPath);
             }
             File.Move(tempPath, destinationPath);
             progress?.Report(100.0);
+            Log.Information("Model {Model} downloaded: {SizeMB:F1} MB in {Seconds:F1}s.", size, totalRead / 1_048_576.0, sw.Elapsed.TotalSeconds);
         }
-        catch
+        catch (OperationCanceledException)
         {
-            if (File.Exists(tempPath))
-            {
-                try { File.Delete(tempPath); } catch { /* ignore */ }
-            }
+            Log.Information("Model {Model} download cancelled after {Seconds:F1}s.", size, sw.Elapsed.TotalSeconds);
+            TryDeleteTemp(tempPath);
             throw;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Model {Model} download failed: {Message}", size, ex.Message);
+            TryDeleteTemp(tempPath);
+            throw;
+        }
+    }
+
+    private static void TryDeleteTemp(string tempPath)
+    {
+        if (!File.Exists(tempPath)) return;
+        try
+        {
+            File.Delete(tempPath);
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Could not delete partial download {Path}.", tempPath);
         }
     }
 
@@ -147,6 +179,11 @@ public class ModelManager : IModelManager
             if (File.Exists(filePath))
             {
                 File.Delete(filePath);
+                Log.Information("Deleted model {Model} ({Path}).", size, filePath);
+            }
+            else
+            {
+                Log.Debug("Delete requested for model {Model}, but {Path} does not exist.", size, filePath);
             }
         }
         return Task.CompletedTask;

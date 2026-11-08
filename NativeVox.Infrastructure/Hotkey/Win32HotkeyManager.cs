@@ -50,7 +50,13 @@ public class Win32HotkeyManager : IHotkeyManager
 
         _hwndSource = HwndSource.FromHwnd(_windowHandle);
         _hwndSource?.AddHook(WndProc);
+        if (_hwndSource == null)
+        {
+            Log.Warning("HwndSource.FromHwnd returned null for 0x{Handle:X}; WM_HOTKEY messages will not be received.", _windowHandle.ToInt64());
+        }
 
+        Log.Debug("Registering hotkey {Config} (fsModifiers 0x{Modifiers:X}, vk 0x{Vk:X}) on hWnd 0x{Handle:X}.",
+            config, fsModifiers, config.VirtualKey, _windowHandle.ToInt64());
         _isRegistered = RegisterHotKey(_windowHandle, HOTKEY_ID, fsModifiers, (uint)config.VirtualKey);
 
         if (_isRegistered)
@@ -60,7 +66,8 @@ public class Win32HotkeyManager : IHotkeyManager
         else
         {
             int errorCode = Marshal.GetLastWin32Error();
-            Log.Error("Failed to register global hotkey {Config}. Win32 error code: {Code}", config, errorCode);
+            Log.Error("Failed to register global hotkey {Config}. Win32 error code: {Code}{Hint}", config, errorCode,
+                errorCode == 1409 ? " (ERROR_HOTKEY_ALREADY_REGISTERED: another app owns this shortcut)" : string.Empty);
         }
 
         return _isRegistered;
@@ -70,7 +77,14 @@ public class Win32HotkeyManager : IHotkeyManager
     {
         if (_isRegistered && _windowHandle != IntPtr.Zero)
         {
-            UnregisterHotKey(_windowHandle, HOTKEY_ID);
+            if (!UnregisterHotKey(_windowHandle, HOTKEY_ID))
+            {
+                Log.Debug("UnregisterHotKey failed (Win32 error {Error}).", Marshal.GetLastWin32Error());
+            }
+            else
+            {
+                Log.Debug("Global hotkey unregistered.");
+            }
             _isRegistered = false;
         }
 
@@ -86,6 +100,7 @@ public class Win32HotkeyManager : IHotkeyManager
         if (msg == WM_HOTKEY && wParam.ToInt32() == HOTKEY_ID)
         {
             handled = true;
+            Log.Debug("Hotkey pressed (WM_HOTKEY).");
             HotkeyTriggered?.Invoke(this, EventArgs.Empty);
         }
 

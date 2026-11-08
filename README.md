@@ -23,23 +23,20 @@ Designed for frictionless offline dictation, NativeVox lives quietly in your sys
 
 ```
 NativeVox/
-├── src/
-│   ├── NativeVox.Core/               # Domain interfaces, models, abstractions
-│   │   ├── Models/                   # AppSettings, ModelInfo, ModelSize, HotkeyConfig
-│   │   └── Services/                 # ITranscriptionService, IAudioCaptureService,
-│   │                                 # ITextInjectionService, IHotkeyManager, IModelManager
-│   ├── NativeVox.Infrastructure/     # Implementations & Hardware Interop
-│   │   ├── Whisper/                  # Whisper.net integration, Ggml model manager, CUDA/CPU
-│   │   ├── Audio/                    # NAudio 16kHz capture, Polly resilience & recovery
-│   │   ├── Injection/                # Win32 SendInput, DiffEngine, UIPI elevation detector
-│   │   ├── Hotkey/                   # Win32 RegisterHotKey manager
-│   │   └── Storage/                  # AppPathResolver (%AppData%\NativeVox\)
-│   └── NativeVox.App/                # Modern WPF Application (.NET 10)
-│       ├── Views/                    # OverlayWindow (Pulsing HUD), SetupWindow, SettingsWindow
-│       ├── Tray/                     # Windows System Tray manager & context menu
-│       └── App.xaml                  # Single-instance mutex, Serilog rolling logs
-├── tests/
-│   └── NativeVox.Tests/              # Unit tests (xUnit) for DiffEngine & core logic
+├── NativeVox.Core/               # Domain interfaces, models, abstractions
+│   ├── Models/                   # AppSettings, ModelInfo, ModelSize, HotkeyConfig
+│   └── Services/                 # Service interfaces
+├── NativeVox.Infrastructure/     # Implementations & hardware interop
+│   ├── Whisper/                  # Whisper.net integration, model manager, CUDA/CPU
+│   ├── Audio/                    # NAudio capture and recovery
+│   ├── Injection/                # Win32 SendInput, DiffEngine, elevation detector
+│   ├── Hotkey/                   # Win32 RegisterHotKey manager
+│   └── Storage/                  # AppPathResolver (%AppData%\NativeVox\)
+├── NativeVox.App/                # WPF application (.NET 10)
+│   ├── Views/                    # Overlay, setup, and settings
+│   ├── Tray/                     # Windows system tray
+│   └── App.xaml                  # Application entry point
+├── NativeVox.Tests/              # xUnit tests for DiffEngine
 └── NativeVox.sln
 ```
 
@@ -61,7 +58,7 @@ dotnet build NativeVox.sln
 dotnet test NativeVox.sln
 
 # Launch the application
-dotnet run --project src/NativeVox.App
+dotnet run --project NativeVox.App
 ```
 
 ---

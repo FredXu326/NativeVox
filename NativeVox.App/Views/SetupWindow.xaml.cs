@@ -2,6 +2,7 @@ namespace NativeVox.App.Views;
 
 using System.Windows;
 using System.Windows.Controls;
+using Serilog;
 using NativeVox.Core.Models;
 using NativeVox.Core.Services;
 using NativeVox.Infrastructure.Storage;
@@ -38,6 +39,7 @@ public partial class SetupWindow : Window
     {
         if (ModelSelector.SelectedItem is ModelInfo selected)
         {
+            Log.Debug("Setup wizard: model selection changed to {Model}.", selected.Size);
             _settings.SelectedModel = selected.Size;
             UpdateModelStatus(selected);
         }
@@ -74,6 +76,7 @@ public partial class SetupWindow : Window
         ModelSelector.IsEnabled = false;
         DownloadStatusText.Text = "Downloading...";
         _downloadCts = new CancellationTokenSource();
+        Log.Debug("Setup wizard: download clicked for {Model}.", selected.Size);
 
         var progress = new Progress<double>(value =>
         {
@@ -96,6 +99,7 @@ public partial class SetupWindow : Window
         }
         catch (Exception ex)
         {
+            Log.Error(ex, "Setup wizard: model download failed.");
             DownloadStatusText.Text = $"Error: {ex.Message}";
             DownloadButton.IsEnabled = true;
             MessageBox.Show($"Failed to download model: {ex.Message}", "Download Error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -108,6 +112,7 @@ public partial class SetupWindow : Window
 
     private void OnCompleteClicked(object sender, RoutedEventArgs e)
     {
+        Log.Information("Setup wizard completed with model {Model}.", _settings.SelectedModel);
         _settings.FirstRunCompleted = true;
         AppPathResolver.SaveSettings(_settings);
         DialogResult = true;

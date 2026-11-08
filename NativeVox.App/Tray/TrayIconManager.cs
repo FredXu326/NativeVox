@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
+using Serilog;
 using NativeVox.Core.Models;
 using NativeVox.Core.Services;
 using NativeVox.Infrastructure.Injection;
@@ -77,7 +78,11 @@ public class TrayIconManager : IDisposable
         menu.Items.Add(new ToolStripMenuItem("View Local Logs", null, (_, _) => OpenLogsFolder()));
 
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(new ToolStripMenuItem("Exit", null, (_, _) => System.Windows.Application.Current.Shutdown()));
+        menu.Items.Add(new ToolStripMenuItem("Exit", null, (_, _) =>
+        {
+            Log.Debug("Exit selected from tray menu.");
+            System.Windows.Application.Current.Shutdown();
+        }));
 
         return menu;
     }
@@ -97,13 +102,21 @@ public class TrayIconManager : IDisposable
             };
 
             var size = m.Size;
-            item.Click += (_, _) => _onModelSelected(size);
+            item.Click += (_, _) =>
+            {
+                Log.Debug("Model {Model} selected from tray menu.", size);
+                _onModelSelected(size);
+            };
             _modelMenuItem.DropDownItems.Add(item);
         }
+
+        Log.Verbose("Tray model menu rebuilt ({Downloaded}/{Total} models downloaded, active {Active}).",
+            models.Count(m => m.IsDownloaded), models.Count, _settings.SelectedModel);
     }
 
     public void SetRecordingState(bool isRecording)
     {
+        Log.Verbose("Tray state -> {State}.", isRecording ? "Recording" : "Ready");
         _notifyIcon.Icon = CreateAppIcon(isRecording);
         if (_statusItem != null)
         {
@@ -114,11 +127,13 @@ public class TrayIconManager : IDisposable
 
     public void ShowNotification(string title, string message, ToolTipIcon icon = ToolTipIcon.Info)
     {
+        Log.Debug("Tray notification ({Icon}): {Title} - {Message}", icon, title, message);
         _notifyIcon.ShowBalloonTip(3000, title, message, icon);
     }
 
     public void ShowMicrophonePermissionWarning()
     {
+        Log.Debug("Showing microphone permission warning balloon.");
         _notifyIcon.BalloonTipClicked += OnMicPermissionBalloonClicked;
         _notifyIcon.ShowBalloonTip(
             5000,
@@ -139,7 +154,7 @@ public class TrayIconManager : IDisposable
                 UseShellExecute = true
             });
         }
-        catch { /* ignore */ }
+        catch (Exception ex) { Log.Warning(ex, "Could not open Windows microphone privacy settings."); }
     }
 
     private static void OpenLogsFolder()
@@ -153,7 +168,7 @@ public class TrayIconManager : IDisposable
                 UseShellExecute = true
             });
         }
-        catch { /* ignore */ }
+        catch (Exception ex) { Log.Warning(ex, "Could not open logs folder."); }
     }
 
     private static void RelaunchAsAdmin()
@@ -161,6 +176,7 @@ public class TrayIconManager : IDisposable
         var exePath = Environment.ProcessPath;
         if (string.IsNullOrEmpty(exePath)) return;
 
+        Log.Information("Relaunching as Administrator: {Path}", exePath);
         try
         {
             Process.Start(new ProcessStartInfo
@@ -171,7 +187,7 @@ public class TrayIconManager : IDisposable
             });
             System.Windows.Application.Current.Shutdown();
         }
-        catch { /* cancelled by user */ }
+        catch (Exception ex) { Log.Debug("Elevated relaunch cancelled or failed: {Message}", ex.Message); }
     }
 
     private static Icon CreateAppIcon(bool isRecording)
