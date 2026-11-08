@@ -37,3 +37,6 @@ Desktop.ini
 # Whisper GGML models
 *.bin
 *.gguf
+
+# understand-anything files
+.ua/*
